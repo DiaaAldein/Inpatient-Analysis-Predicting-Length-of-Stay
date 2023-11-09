@@ -76,7 +76,7 @@ data = [age_group,type_of_admission,ccs_diagnosis_description,ccs_procedure_desc
 scaler = joblib.load('scaler.h5') 
 model = joblib.load('knnr.h5')
 
-data_scaled = scaler.transform(data)
+data_scaled = scaler.transform([data])
 
 result = model.predict(data_scaled)
 
