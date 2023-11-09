@@ -3,8 +3,8 @@ import streamlit as st
 import joblib
 from dummies_dict import *
 
-scaler = joblib.load("scaler.h5")
-model = joblib.load("knnr.h5")
+scaler = joblib.load("./scaler.h5")
+model = joblib.load("./knnr.h5")
 
 st.title('''Inpatient Analysis & Predicting Length of Stay Model\n Data Science Project\n 
          Project prepared by: Diaa Aldein Alsayed Ibrahim Osman\n 
