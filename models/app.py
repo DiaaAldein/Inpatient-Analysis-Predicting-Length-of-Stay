@@ -1,9 +1,12 @@
 import pandas as pd
 import streamlit as st
 import joblib
+import pickle
 from dummies_dict import *
 
-scaler = joblib.load('scaler.h5') 
+# Load the pickled scaler object
+with open('scaler.pkl', 'rb') as f:
+    scaler = pickle.load(f)
 model = joblib.load('knnr.h5')
 
 st.title('''Inpatient Analysis & Predicting Length of Stay Model\n Data Science Project\n 
