@@ -3,6 +3,8 @@ import streamlit as st
 import joblib
 from dummies_dict import *
 
+scaler = joblib.load('scaler.h5') 
+model = joblib.load('knnr.h5')
 
 st.title('''Inpatient Analysis & Predicting Length of Stay Model\n Data Science Project\n 
          Project prepared by: Diaa Aldein Alsayed Ibrahim Osman\n 
@@ -72,9 +74,6 @@ emergency_department_indicator_sel = st.selectbox('Select Emergency Department I
 emergency_department_indicator_Y = dict_emergency_department_indicator_list[emergency_department_indicator_sel]
 
 data = [age_group,type_of_admission,ccs_diagnosis_description,ccs_procedure_description,apr_drg_description,apr_mdc_description,apr_severity_of_illness_description,apr_risk_of_mortality,gender_M,apr_medical_surgical_description_Surgical,emergency_department_indicator_Y]
-
-scaler = joblib.load('scaler.h5') 
-model = joblib.load('knnr.h5')
 
 data_scaled = scaler.transform([data])
 
