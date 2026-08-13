@@ -1,4 +1,6 @@
-Inpatient Analysis & Predicting Length of Stay
+> **Note:** This branch is an archive of an early attempt at this project (before a full rebuild). See the `main` branch for the current, final version and full methodology.
+>
+> Inpatient Analysis & Predicting Length of Stay
 ==============================
 
 Inpatient Analysis & Predicting Length of Stay
