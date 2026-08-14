@@ -1,17 +1,26 @@
 
 import json
+import os
 import joblib
 import numpy as np
 import pandas as pd
 import streamlit as st
 
+# FIX: relative paths like "deployment_config.json" resolve against the
+# CURRENT WORKING DIRECTORY, which is not guaranteed to be app.py's own
+# folder - Streamlit Community Cloud, for one, runs scripts from the
+# repository root, not from inside models/. Building every path from
+# app.py's own location instead makes this correct regardless of where
+# or how the app is launched from.
+_APP_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Load the deployment manifest (Section 15) and both final model pipelines - all
 # three files are expected to sit alongside app.py.
-with open("deployment_config.json", encoding="utf-8") as f:
+with open(os.path.join(_APP_DIR, "deployment_config.json"), encoding="utf-8") as f:
     CONFIG = json.load(f)
 
-l2_pipeline = joblib.load(CONFIG["model_files"]["L2_log1p"])
-tweedie_pipeline = joblib.load(CONFIG["model_files"]["Tweedie_regularized"])
+l2_pipeline = joblib.load(os.path.join(_APP_DIR, CONFIG["model_files"]["L2_log1p"]))
+tweedie_pipeline = joblib.load(os.path.join(_APP_DIR, CONFIG["model_files"]["Tweedie_regularized"]))
 
 FEATURE_COLUMNS = CONFIG["feature_columns"]
 CATEGORICAL_VALUES = CONFIG["categorical_values"]
