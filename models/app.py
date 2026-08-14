@@ -46,6 +46,7 @@ tweedie_pipeline = joblib.load(os.path.join(_APP_DIR, CONFIG["model_files"]["Twe
 FEATURE_COLUMNS = CONFIG["feature_columns"]
 CATEGORICAL_VALUES = CONFIG["categorical_values"]
 ORDINAL_ORDER = CONFIG["ordinal_scale_order"]
+MDC_TO_DRG_MAP = CONFIG["mdc_to_drg_map"]
 BLEND_WEIGHT = CONFIG["blend_weight_l2_log1p"]
 
 
@@ -71,22 +72,56 @@ def Main():
         f"Blended CatBoost model - test set R\u00b2={CONFIG['headline_test_metrics']['r2']:.3f}, "
         f"MAE={CONFIG['headline_test_metrics']['mae_days']:.2f} days"
     )
+    st.markdown(
+        "Predicts a hospital patient's expected **length of stay (in days)** from "
+        "information available at admission. Trained on 2015 New York (SPARCS) "
+        "inpatient records, **adult patients (18+) only**. Intended to support "
+        "hospital bed-planning and resource-allocation workflows - **not** a "
+        "clinical decision tool for individual patients. See the "
+        "[project README](https://github.com/DiaaAldein/Inpatient-Analysis-Predicting-Length-of-Stay) "
+        "for full methodology and known limitations."
+    )
 
     st.subheader("Clinical Information")
+    apr_mdc_description = st.selectbox(
+        "APR MDC (major diagnostic category)",
+        CATEGORICAL_VALUES["apr_mdc_description"],
+        help="The broad clinical category (e.g., 'Diseases of the Circulatory "
+             "System') the admission falls under. Selecting this first narrows "
+             "the APR DRG options below to only those that are valid for this "
+             "category.",
+    )
+    apr_drg_description = st.selectbox(
+        "APR DRG (diagnosis-related group)",
+        MDC_TO_DRG_MAP[apr_mdc_description],
+        help="A more specific clinical grouping within the selected MDC above "
+             "(e.g., a particular type of surgery or condition). Options are "
+             "filtered to those actually observed for the selected MDC in the "
+             "training data.",
+    )
     ccs_diagnosis_description = st.selectbox(
         "Diagnosis", CATEGORICAL_VALUES["ccs_diagnosis_description"])
     ccs_procedure_description = st.selectbox(
         "Procedure", CATEGORICAL_VALUES["ccs_procedure_description"])
-    apr_drg_description = st.selectbox(
-        "APR DRG (diagnosis-related group)", CATEGORICAL_VALUES["apr_drg_description"])
-    apr_mdc_description = st.selectbox(
-        "APR MDC (major diagnostic category)", CATEGORICAL_VALUES["apr_mdc_description"])
     apr_medical_surgical_description = st.selectbox(
-        "Medical / Surgical", CATEGORICAL_VALUES["apr_medical_surgical_description"])
+        "Medical / Surgical",
+        CATEGORICAL_VALUES["apr_medical_surgical_description"],
+        help="Whether the admission was primarily medical (treated without a "
+             "major procedure) or surgical.",
+    )
     apr_severity_of_illness_description = st.selectbox(
-        "Severity of Illness", ORDINAL_ORDER["apr_severity_of_illness_description"])
+        "Severity of Illness",
+        ORDINAL_ORDER["apr_severity_of_illness_description"],
+        help="Clinical severity scale, from Minor to Extreme. The strongest "
+             "single predictor of length of stay found during this project's "
+             "exploratory analysis.",
+    )
     apr_risk_of_mortality = st.selectbox(
-        "Risk of Mortality", ORDINAL_ORDER["apr_risk_of_mortality"])
+        "Risk of Mortality",
+        ORDINAL_ORDER["apr_risk_of_mortality"],
+        help="A related but distinct APR-based scale estimating risk of death, "
+             "from Minor to Extreme.",
+    )
 
     st.subheader("Admission Information")
     type_of_admission = st.selectbox(
@@ -97,7 +132,12 @@ def Main():
         "Primary Payment Type", CATEGORICAL_VALUES["payment_typology_1"])
 
     st.subheader("Patient Information")
-    age_group = st.selectbox("Age Group", ORDINAL_ORDER["age_group"])
+    age_group = st.selectbox(
+        "Age Group",
+        ORDINAL_ORDER["age_group"],
+        help="The model was trained on adult patients (18+) only - pediatric "
+             "admissions are out of scope and not supported by this tool.",
+    )
     gender = st.selectbox("Gender", CATEGORICAL_VALUES["gender"])
 
     if st.button("Predict Length of Stay"):
@@ -121,6 +161,9 @@ def Main():
             "This is a research/portfolio model, not a clinical decision tool - "
             "see the project README for known limitations."
         )
+
+    st.divider()
+    st.caption("Built by Diaa Aldein Alsayed Ibrahim Osman")
 
 
 Main()
