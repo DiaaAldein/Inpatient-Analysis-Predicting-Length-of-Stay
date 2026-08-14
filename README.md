@@ -1,5 +1,9 @@
 # Inpatient Length-of-Stay Prediction
 
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://inpatient-analysis-predicting-length-of-stay-xskqrmuty7keqyq9s.streamlit.app/)
+
+**[Try the live app](https://inpatient-analysis-predicting-length-of-stay-xskqrmuty7keqyq9s.streamlit.app/)**
+
 ## Executive Summary
 
 This project predicts inpatient hospital length of stay (in days) for adult patients from information available at admission, using a methodology-first workflow: the model family is compared empirically — under a preprocessing strategy fair to every candidate — *before* any commitment is made, and every subsequent decision (feature engineering, loss function, hyperparameter tuning) is built on the confirmed winner rather than an assumed one.
