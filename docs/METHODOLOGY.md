@@ -27,17 +27,29 @@ This document is a technical companion to the top-level [README](../README.md), 
 
 ## Sections 1–3: Environment, Storage, and Data Acquisition
 
-Sets up the reproducible execution environment and connects to persistent storage (Google Drive). Raw data acquisition (Section 3) checks for an existing cached copy before downloading from Kaggle, since the source data never changes between runs — this and every other heavy step in the notebook follows the same checkpoint pattern: check for a cached, signature-matched result first, compute only if none exists.
+Sets up the reproducible execution environment and connects to persistent storage (Google Drive).
+
+**Challenge:** Google Colab sessions can disconnect or reset unpredictably — including mid-run, sometimes after hours of progress on computationally expensive steps (the hyperparameter search in particular). Without a way to resume, any disconnect meant starting over from scratch.
+
+**Solution:** A checkpoint system, defined here and used by every heavy step in the notebook from this point on. Each checkpoint is keyed to a **signature** — a hash computed from the exact state of the data and pipeline that produced it (row/column counts, encoding structure, and similar). Before recomputing anything expensive, the notebook checks for a saved result whose signature matches the *current* state: if found, it loads the saved result instantly instead of recomputing; if the signature doesn't match (because something upstream genuinely changed), it recomputes automatically rather than silently returning a stale result. This is what makes the notebook safely resumable after any disconnect, and safe to re-run after a code change without manually tracking what needs to be redone.
 
 ## Section 4 / 4b: Cleaning and Exploratory Data Analysis
 
-Section 4 handles standard data-quality issues (missing values, inconsistent formatting, memory-inefficient types) and flags censored stays (recorded as "120+" days) for later exclusion. Section 4b runs ten targeted exploratory questions, each answering a specific analytical question rather than serving as generic exploration — findings here (the target's skew, the strongest visual predictors, the prevalence of censored stays) directly motivate later design decisions (the `log1p` transform, the permanent row exclusion in Section 5, feature-level experiments in Section 9).
+**Challenge:** at 2.35M rows, loading and processing the raw dataset with default pandas dtypes consumed far more memory than necessary, slowing every subsequent step.
+
+**Solution:** Section 4 downcasts every column to the smallest safe representation for its actual value range (e.g., 64-bit integers to 8/16/32-bit where the data's range allows, appropriate categorical/object types instead of generic wide types) rather than leaving default-inferred pandas dtypes. It also handles standard data-quality issues (missing values, inconsistent formatting) and flags censored stays (recorded as "120+" days) for later exclusion. Section 4b runs ten targeted exploratory questions, each answering a specific analytical question rather than serving as generic exploration — findings here (the target's skew, the strongest visual predictors, the prevalence of censored stays) directly motivate later design decisions (the `log1p` transform, the permanent row exclusion in Section 5, feature-level experiments in Section 9).
 
 ## Section 5: Feature Selection & Train/Test Split
 
 Two decisions made here shape everything downstream:
 - **Censored rows are permanently excluded** from both train and test sets — their recorded "120+" value is a floor on an unknown true value, not an accurate measurement, so keeping them anywhere would train or evaluate against an inaccurate label.
-- **`StratifiedGroupKFold`**, not a plain random split, is used for the train/test split — every row is grouped by a hash of its complete feature+target combination, so identical rows can never land on both sides of the split. This is a specific, deliberate defense against a form of train/test leakage (duplicate-row contamination) identified in an earlier iteration of this project.
+- **`StratifiedGroupKFold`**, not a plain random split, is used for the train/test split.
+
+**Challenge:** dropping the columns not useful for prediction (this section) leaves many rows that describe genuinely different patients but are now identical across every remaining column, including the target (length of stay) itself — the feature space is coarser than the space of real individuals. A plain random split measured against this reality was found to place the *same* feature+target combination on both sides of the split for an estimated **70.8% of the test set** — meaning most of what looked like "unseen" test performance under a naive split was actually the model being scored on combinations it had already seen during training, not a genuine generalization measurement.
+
+**Why the fix is not simply deleting the duplicates:** the duplication itself is not a data-entry error — it reflects real, natural variation in outcomes for patients who share the same recorded characteristics, and removing it would discard that real variance rather than any error. The leakage problem is specifically about *which side of the split* a duplicated combination lands on, not the duplication existing at all.
+
+**Solution:** every row is grouped by a hash of its complete feature+target combination, and `StratifiedGroupKFold` guarantees each full group stays entirely on one side of the split — so identical combinations can never be divided between train and test. This preserves every row's contribution to the data's natural distribution while eliminating the leakage: a direct verification after the fix confirmed **zero cross-contaminated rows** between the final train and test sets.
 
 ## Section 6: Universal Preprocessing Pipeline
 
@@ -57,11 +69,15 @@ Tests CatBoost's native categorical-handling capability directly against Target 
 
 ## Section 9 / 9b / 9c: Feature-Level Experiments
 
-Tests three hypotheses raised during Section 4b's exploratory analysis: dropping a column found highly correlated with others, and two engineered interaction features (severity×age, severity×ED-indicator). **None improved performance under a minimum-meaningful-improvement threshold** (0.05% relative MAE, used to filter out fold-to-fold noise rather than treating any nonzero difference as a real signal). This is reported as a legitimate, informative finding: it indicates CatBoost captures these relationships internally without needing them engineered explicitly, and the retained "redundant" column continues to carry real predictive weight in Section 13's feature-importance analysis.
+Tests three hypotheses raised during Section 4b's exploratory analysis: dropping a column found highly correlated with others, and two engineered interaction features (severity×age, severity×ED-indicator). **None improved performance under a minimum-meaningful-improvement threshold** (0.05% relative MAE, used to filter out fold-to-fold noise rather than treating any nonzero difference as a real signal).
+
+**Challenge:** this threshold was added *after* a logic bug was caught during review — the first version of the adoption check compared results with a strict "any improvement, however small" rule, and a candidate with an exactly 0.00% measured difference was incorrectly accepted as a pass due to a floating-point comparison edge case at the boundary. The bug was root-caused and fixed by introducing the explicit 0.05% threshold, applied retroactively to all three experiments in this section and consistently to every later experiment in the notebook.
+
+This is reported as a legitimate, informative finding: it indicates CatBoost captures these relationships internally without needing them engineered explicitly, and the retained "redundant" column continues to carry real predictive weight in Section 13's feature-importance analysis.
 
 ## Section 10 / 10b / 10c: Loss Function Comparison & Blending
 
-Compares an L2 loss on a `log1p`-transformed target against a Tweedie loss (suited to right-skewed, heteroscedastic targets) fit directly on the raw target. Neither dominated: Tweedie improved R²/RMSE (the long right tail of extended stays) while L2+log1p improved MAE/Median AE (the majority of typical-length stays). A blend of the two models' predictions is derived as the exact solution to a constrained optimization (maximum achievable MAE improvement subject to CV R² remaining above a stated floor), not a subjectively chosen compromise. Section 10c additionally tests — and rejects — applying Tweedie to an already-log-transformed target, confirming a theoretical concern (the two techniques address the same skew via conflicting assumptions) with direct experimental evidence.
+Compares an L2 loss on a `log1p`-transformed target against a Tweedie loss (suited to right-skewed, heteroscedastic targets) fit directly on the raw target. Neither dominated: Tweedie improved R²/RMSE (the long right tail of extended stays) while L2+log1p improved MAE/Median AE (the majority of typical-length stays). A blend of the two models' predictions is derived as the exact solution to a constrained optimization — maximum achievable MAE improvement subject to CV R² remaining above 0.39 — not a subjectively chosen compromise. This first pass (on the untuned models) settles on a blend weight of 0.40 (favoring Tweedie); Section 11f re-derives this same optimization on the tuned models once hyperparameter tuning is complete, and the optimal weight shifts to 0.60. Section 10c additionally tests — and rejects — applying Tweedie to an already-log-transformed target, confirming a theoretical concern (the two techniques address the same skew via conflicting assumptions) with direct experimental evidence.
 
 ![Loss function trade-off](../reports/figures/loss_tradeoff.png)
 
@@ -92,9 +108,19 @@ The project's model card: intended use, training data scope, final hyperparamete
 
 Exports a single deployment manifest (`deployment_config.json`) — every valid categorical value (extracted directly from the training data, never hand-typed), the fixed ordinal scales, the final blend weight, and the model file names — plus an auto-generated `requirements.txt` derived from the live environment (`pip freeze`, filtered to the packages this project actually uses). Both artifacts are designed to stay in sync automatically: re-running this section after any retraining regenerates them from the current state, with no manual editing required downstream.
 
+Also exports an MDC-to-DRG hierarchy map: Section 4b (Q5) found these two columns very strongly associated (Cramer's V ~0.91), because APR-DRG is, by clinical classification design, a sub-category of APR-MDC. This map lets the deployed app's DRG input cascade from the selected MDC, ruling out clinically invalid combinations by construction — a check first verified against the training data directly (most other column pairs tested this way did *not* show a near-hierarchical relationship strong enough to justify the same treatment, so this filtering was deliberately not extended beyond MDC/DRG).
+
+**Challenge:** an early version of this section wrote `requirements.txt` using a relative path, which resolves against Colab's ephemeral `/content/` working directory rather than the persistent Google Drive location every other artifact in this notebook uses — the file appeared to save successfully but was silently lost on the next runtime restart. Fixed by using the same explicit, persistent `MODEL_DIR` path as every other saved artifact.
+
 ## Section 16: Streamlit App Generation
 
-Generates the deployable `app.py` directly via `%%writefile`. Every input widget is populated from Section 15's manifest at runtime rather than hard-coded, so the deployed application's valid input options can never drift out of sync with what the underlying model was actually trained on.
+Generates the deployable `app.py` directly via `%%writefile`. Every input widget is populated from Section 15's manifest at runtime rather than hard-coded, so the deployed application's valid input options can never drift out of sync with what the underlying model was actually trained on — including the MDC-to-DRG cascading filter from Section 15, and inline help text for administrative/clinical fields whose meaning is not self-evident (e.g., APR MDC, APR DRG, Risk of Mortality).
+
+**Three deployment-specific challenges surfaced only once the app was actually deployed, each diagnosed from its live error trace and fixed at the root:**
+
+1. **Ephemeral storage, again:** like Section 15's `requirements.txt` issue, `%%writefile app.py` writes to the current working directory by default — fixed by explicitly changing the working directory to the persistent `MODEL_DIR` immediately before this cell runs.
+2. **A Python version mismatch between training and deployment:** the deployment platform's default Python (3.10) could not satisfy a dependency (`scipy`) that required Python 3.11+, matching the version actually used during training in Colab. Fixed by explicitly configuring the deployment platform to use the matching Python version, rather than relaxing the dependency pin.
+3. **A `joblib`/pickle deserialization failure:** `full_preprocessor` (Section 6) uses `FunctionTransformer(apply_ordinal_maps)` — `joblib` pickles a *reference* to this function's name and defining module, not its body, so loading the pipeline in a standalone script (which has no access to the original notebook's environment) failed with an `AttributeError` until an identically-named, identically-behaving copy of `apply_ordinal_maps` was defined directly inside `app.py`.
 
 ---
 
