@@ -57,6 +57,8 @@ Five model families — LightGBM, CatBoost, XGBoost, Random Forest, and a Linear
 | XGBoost | **Generalization** — competitive accuracy, but a Train-CV gap reaching up to 37.6% depending on configuration |
 | Random Forest | **Operational cost** — competitive accuracy and an acceptable generalization gap, but substantially slower to train with no accuracy advantage to justify it |
 
+![Model family comparison](reports/figures/model_comparison.png)
+
 ### 2. Preprocessing strategy confirmed for the winning model specifically
 Once CatBoost was confirmed, its native categorical-handling capability was tested directly against Target Encoding (the encoding used for the fair, cross-model comparison above). Target Encoding won — a finding specific to CatBoost, illustrating why encoding strategy should be tested per-model rather than assumed to generalize from one model family to another.
 
@@ -82,6 +84,10 @@ The test set was consulted **exactly once**, after every design decision above w
 | Median AE | 1.35 days |
 | Predictions within ±3 days | 76.2% |
 | Predictions within ±5 days | 87.3% |
+
+![Tolerance-based accuracy](reports/figures/tolerance_accuracy.png)
+
+![Feature importance](reports/figures/feature_importance.png)
 
 ## Model Card
 
