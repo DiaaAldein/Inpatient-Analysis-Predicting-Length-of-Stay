@@ -31,3 +31,7 @@ streamlit run app.py
 ## A Note on Large Files
 
 The two `.joblib` model files are moderate in size (~16 MB each) and are committed directly to this repository — no Git LFS is required. See the top-level [README](../README.md) for the full project overview, methodology, and results.
+
+---
+
+*Part of the [Inpatient Length-of-Stay Prediction](https://github.com/DiaaAldein/Inpatient-Analysis-Predicting-Length-of-Stay) project — Diaa Aldein Alsayed Ibrahim Osman ([LinkedIn](https://www.linkedin.com/in/diaa-ibrahim-data/)).*
