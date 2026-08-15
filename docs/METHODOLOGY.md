@@ -99,3 +99,7 @@ Generates the deployable `app.py` directly via `%%writefile`. Every input widget
 ---
 
 *For the full code, run each section sequentially in the notebook itself. For results and headline metrics, see the [README](../README.md).*
+
+---
+
+*Part of the [Inpatient Length-of-Stay Prediction](https://github.com/DiaaAldein/Inpatient-Analysis-Predicting-Length-of-Stay) project — Diaa Aldein Alsayed Ibrahim Osman ([LinkedIn](https://www.linkedin.com/in/diaa-ibrahim-data/)).*
