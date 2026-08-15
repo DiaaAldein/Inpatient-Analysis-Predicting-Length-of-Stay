@@ -17,6 +17,7 @@ This project predicts inpatient hospital length of stay (in days) for adult pati
 - [Problem Statement](#problem-statement)
 - [Data](#data)
 - [Methodology](#methodology)
+- [Key Challenges & Solutions](#key-challenges--solutions)
 - [Key Results](#key-results)
 - [Model Card](#model-card)
 - [Known Limitations](#known-limitations)
@@ -73,6 +74,19 @@ A fast screening phase (a data sample, reduced fold count) narrowed the search s
 
 ### 6. Final evaluation
 The test set was consulted **exactly once**, after every design decision above was finalized — model family, preprocessing, features, loss function, hyperparameters, and blend weight were all locked in using only cross-validated evidence beforehand. Cross-validated estimates held up closely on this genuinely unseen data (within 0.7% for every metric reported), evidence against the extensive CV-based decision process having overfit to the cross-validation folds themselves.
+
+## Key Challenges & Solutions
+
+Beyond the modeling decisions above, several practical engineering challenges shaped how this project was built - each diagnosed to its root cause and resolved, not worked around.
+
+| Challenge | How it was resolved |
+|---|---|
+| **Large-scale data (2.35M rows) combined with an unreliable execution environment** (Google Colab sessions disconnecting or resetting mid-run, sometimes after hours of progress) | Built a checkpoint system from the start: every heavy step saves its result keyed to a **signature** of the exact data/pipeline state that produced it, so re-running after a disconnect skips already-completed work instead of restarting from zero - and automatically recomputes if anything upstream actually changed. See [Sections 1–3](docs/METHODOLOGY.md#sections-13-environment-storage-and-data-acquisition). Memory pressure from the dataset's size was separately addressed by downcasting every column to the smallest safe numeric/categorical type. See [Section 4 / 4b](docs/METHODOLOGY.md#section-4--4b-cleaning-and-exploratory-data-analysis). |
+| **A subtle form of train/test leakage** - duplicate feature+target rows landing on both sides of a naive random split | Replaced random splitting with a group-aware, stratified split (`StratifiedGroupKFold`), grouping rows by a hash of their full feature+target combination so identical rows can never be separated across the split. See [Section 5](docs/METHODOLOGY.md#section-5-feature-selection--traintest-split). |
+| **A severe, non-obvious CatBoost performance issue** - over 2 hours per fold with native categorical handling on high-cardinality columns | Diagnosed the root cause (an automatic categorical-combination search enabled by default) and disabled it specifically, cutting per-fold time to 5–12 minutes with no change to the underlying categorical handling itself. See [Section 8](docs/METHODOLOGY.md#section-8-model-specific-preprocessing-check). |
+| **A logic bug in an automated adoption threshold** - a feature test with a 0.00% measured improvement was initially accepted as a "pass" due to a floating-point comparison edge case | Caught during review, root-caused, and fixed by introducing an explicit minimum-meaningful-improvement threshold (0.05% relative MAE) applied consistently to every subsequent experiment. See [Section 9 / 9b / 9c](docs/METHODOLOGY.md#section-9--9b--9c-feature-level-experiments). |
+| **A significant generalization gap** (16% Train-CV R² gap) discovered during final-scale hyperparameter confirmation | Ran a dedicated regularization search rather than accepting the gap or discarding the model, reducing it to 5.3% at negligible cost to accuracy. See [Section 11](docs/METHODOLOGY.md#section-11-11--11f-hyperparameter-optimization). |
+| **Multiple deployment-specific failures** - files silently saved to ephemeral storage instead of persistent storage, a Python version mismatch between the training and deployment environments, and a `joblib`-pickled pipeline referencing a function unavailable outside the original notebook | Each diagnosed from its actual error trace and fixed at the root (explicit persistent-storage paths, matching the deployment platform's Python version to the training environment, replicating the required function definition in the deployed script) rather than patched around. See [Section 15](docs/METHODOLOGY.md#section-15-deployment-preparation) and [Section 16](docs/METHODOLOGY.md#section-16-streamlit-app-generation). |
 
 ## Key Results
 
