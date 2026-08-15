@@ -154,4 +154,11 @@ A Streamlit app (`models/app.py`) is generated directly by the notebook (Section
 
 ---
 
-*Author: Diaa Aldein Alsayed Ibrahim Osman*
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+## Contact
+
+**Diaa Aldein Alsayed Ibrahim Osman**
+[LinkedIn](https://www.linkedin.com/in/diaa-ibrahim-data/) · [GitHub](https://github.com/DiaaAldein)
+
+© 2026 Diaa Aldein Alsayed Ibrahim Osman — released under the [MIT License](LICENSE).
