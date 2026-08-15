@@ -63,6 +63,8 @@ Tests three hypotheses raised during Section 4b's exploratory analysis: dropping
 
 Compares an L2 loss on a `log1p`-transformed target against a Tweedie loss (suited to right-skewed, heteroscedastic targets) fit directly on the raw target. Neither dominated: Tweedie improved R²/RMSE (the long right tail of extended stays) while L2+log1p improved MAE/Median AE (the majority of typical-length stays). A blend of the two models' predictions is derived as the exact solution to a constrained optimization (maximum achievable MAE improvement subject to CV R² remaining above a stated floor), not a subjectively chosen compromise. Section 10c additionally tests — and rejects — applying Tweedie to an already-log-transformed target, confirming a theoretical concern (the two techniques address the same skew via conflicting assumptions) with direct experimental evidence.
 
+![Loss function trade-off](../reports/figures/loss_tradeoff.png)
+
 ## Section 11 (11 – 11f): Hyperparameter Optimization
 
 A six-part sequence following a "cheap screen, expensive confirm" pattern throughout:
@@ -73,6 +75,8 @@ A six-part sequence following a "cheap screen, expensive confirm" pattern throug
 5. **11f**: re-derives the blend weight (Section 10b's methodology) on the tuned models — the optimal weight shifts from 0.40 to 0.60, with a genuine 2.1% MAE improvement over the untuned blend at an equivalent R².
 
 ## Section 12 (12a – 12e): Final Evaluation
+
+![Performance by severity](../reports/figures/severity_performance.png)
 
 The test set is consulted here for the first time — every design decision above was finalized using only cross-validated evidence beforehand. Cross-validated estimates held up within 0.7% of the actual test-set result for every metric. Sub-sections evaluate the adopted blend (and, for comparison, each pure model) from multiple angles: performance segmented by severity (12b), tolerance-based accuracy in plain-language terms (12c), a direct inspection of the worst-predicted individual cases (12d) — which surfaced a specific, reproducible weak point (Schizophrenia/psychotic-disorder diagnoses and near-120-day stays, consistent across every configuration tested) — and a final Train-vs-Test generalization check (12e).
 
